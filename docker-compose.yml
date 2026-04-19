@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    container_name: coursework
+    restart: unless-stopped
+    expose:
+      - "3000"
+    volumes:
+      - ./public/slides:/app/public/slides
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    external: true
