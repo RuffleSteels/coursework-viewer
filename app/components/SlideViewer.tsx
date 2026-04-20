@@ -76,7 +76,14 @@ export function SlideViewer({
 
     const slideUrl = (page: number) =>
         `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/slide-${String(page).padStart(4, "0")}.webp`;
+    const [isMobile, setIsMobile] = useState(false);
 
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth <= 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
     const resetZoom = useCallback(() => {
         setZoom(1);
         setPanX(0);
@@ -174,8 +181,13 @@ export function SlideViewer({
 
     useEffect(() => {
         const activeThumb = sidebarRef.current?.querySelector('.slide-thumb-btn--active');
-        if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, [currentPage]);
+        if (!activeThumb) return;
+        if (isMobile) {
+            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        } else {
+            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [currentPage, isMobile]);
 
     const goTo = useCallback((page: number) => {
         setCurrentPage(Math.max(1, Math.min(totalPages, page)));
@@ -537,11 +549,17 @@ export function SlideViewer({
 
                             {/* Zoom hint */}
                             {zoom > 1 && (
-                                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 50, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', color: '#fff', fontSize: '11px', padding: '4px 10px', borderRadius: '20px', pointerEvents: 'none' }}>
+                                <div style={{
+                                    position: 'absolute', top: '8px', right: '8px', zIndex: 50,
+                                    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+                                    color: '#fff', fontSize: '11px', padding: '4px 10px',
+                                    borderRadius: '20px', pointerEvents: 'none',
+                                    // Don't render zoom hint on mobile — too cluttered
+                                    display: isMobile ? 'none' : 'block',
+                                }}>
                                     {Math.round(zoom * 100)}% — click to reset
                                 </div>
                             )}
-
                             <div className="ratio-stage" style={{ "--aspect": aspectRatio } as React.CSSProperties}>
                                 <div
                                     ref={slideFrameRef}
@@ -611,6 +629,18 @@ export function SlideViewer({
                                 </svg>
                             )}
                         </button>
+
+                        {/* Grid button — only visible on mobile, lives here next to fullscreen */}
+                        {isMobile && (
+                            <button className="ctrl-btn" onClick={() => setShowGrid(!showGrid)} title="Grid View">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="14" width="7" height="7"></rect>
+                                    <rect x="3" y="14" width="7" height="7"></rect>
+                                </svg>
+                            </button>
+                        )}
 
                         {isAdmin && (
                             <>
