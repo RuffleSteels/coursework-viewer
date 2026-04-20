@@ -29,7 +29,7 @@ const nextConfig = {
         ];
     },
 
-    webpack: (config) => {
+    webpack: (config: { resolve: { alias: { canvas: boolean; }; }; }) => {
         config.resolve.alias.canvas = false;
         return config;
     },
