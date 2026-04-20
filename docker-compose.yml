@@ -13,7 +13,8 @@ services:
       - ./public:/app/public
     networks:
       - proxy-net
-
+    env_file:
+      - .env
 networks:
   proxy-net:
     external: true
