@@ -63,7 +63,7 @@ function VideoElement({
         };
     }, []);
 
-    const togglePlay = (e: React.MouseEvent) => {
+    const togglePlay = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         const video = ref.current;
         if (!video) return;
@@ -94,6 +94,9 @@ function VideoElement({
                 background: "#000",
             }}
             onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
         >
             <video
                 ref={ref}
