@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 const isProd = process.env.NODE_ENV === "production";
 const basePath = isProd ? "/coursework" : "";
 export const authOptions: NextAuthOptions = {
+    useSecureCookies: true,
     providers: [
         CredentialsProvider({
             name: "Credentials",
@@ -51,6 +52,9 @@ export const authOptions: NextAuthOptions = {
     },
     pages: {
         signIn: `${basePath}/auth/signin`,
+    },
+    session: {
+        strategy: "jwt",
     },
     secret: process.env.NEXTAUTH_SECRET,
 };
