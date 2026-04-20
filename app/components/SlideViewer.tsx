@@ -129,6 +129,19 @@ export function SlideViewer({
         };
         checkAccess();
     }, [isAdmin, isPublic, presentationId, verifyPassword]);
+
+    // Umami event tracking
+    useEffect(() => {
+        if (isAuthorized && !isAdmin && !isCheckingAuth) {
+            if (typeof window !== 'undefined' && (window as any).umami) {
+                (window as any).umami.track('View Presentation', {
+                    presentationId,
+                    title
+                });
+            }
+        }
+    }, [isAuthorized, isAdmin, isCheckingAuth, presentationId, title]);
+
 // Add these handlers:
     const handleFolderDragEnd = () => {
         if (dragFolder.current === null || dragOverFolder.current === null) return;
@@ -661,7 +674,7 @@ export function SlideViewer({
                                         }}
                                     >
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="4 14 10 14 10 20" />
+                                            <polyline points="4 14 10 14 10 20" channel="foo" />
                                             <polyline points="20 10 14 10 14 4" />
                                             <line x1="10" y1="14" x2="3" y2="21" />
                                             <line x1="21" y1="3" x2="14" y2="10" />
