@@ -30,7 +30,7 @@ export default async function ViewPage({ params }: Props) {
     if (!meta) notFound();
 
     // Pass authOptions here so it knows how to decode the token/role
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as any;
     const isAdmin = session?.user?.role === 'admin';
 
     // If it's not public and not admin, redirect to sign in
