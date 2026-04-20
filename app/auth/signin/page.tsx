@@ -1,8 +1,9 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState, Suspense } from "react"; // Added Suspense
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 // 1. Move your logic into a sub-component
 function SignInForm() {
@@ -83,6 +84,8 @@ function SignInForm() {
 
 // 2. The main export wraps the form in Suspense
 export default function SignIn() {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/coursework";
+
   return (
       <div className="page" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <div style={{
@@ -103,6 +106,27 @@ export default function SignIn() {
           <Suspense fallback={<div>Loading...</div>}>
             <SignInForm />
           </Suspense>
+
+          <div style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+            <Link
+                href={`${process.env.NEXT_PUBLIC_BASE_PATH}/`}
+                className="btn"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '12px',
+                  display: 'flex',
+                  marginTop: '8px',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  fontSize: '14px',
+                  textDecoration: 'none'
+                }}
+            >
+              ← Back to Home
+            </Link>
+          </div>
         </div>
       </div>
   );

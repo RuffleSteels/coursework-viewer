@@ -3,6 +3,7 @@ import { UploadZone } from "@/app/components/UploadZone";
 import { listPresentations } from "@/app/lib/pdf-processor";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/lib/auth";
+import { SignOutButton } from "@/app/components/SignOutButton";
 
 // This page is a Server Component — it reads the filesystem directly.
 // No need for a fetch to /api/presentations here.
@@ -24,7 +25,20 @@ export default async function HomePage() {
   return (
       <div className="page">
         <nav className="nav">
-          <a href="/" className="nav-logo">Coursework</a>
+          <a href={`${process.env.NEXT_PUBLIC_BASE_PATH}/`} className="nav-logo">Coursework</a>
+          {session ? (
+            <div style={{ width: '100%' }}>
+              <SignOutButton />
+            </div>
+          ) : (
+            <Link
+              href="/auth/signin"
+              className="editor-title"
+              style={{ width: '100%', textAlign: 'right', textDecoration: 'none' }}
+            >
+              Sign In
+            </Link>
+          )}
         </nav>
 
         <main className="home-main">

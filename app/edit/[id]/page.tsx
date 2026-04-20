@@ -310,7 +310,7 @@ function EditorContent() {
         <div className="editor-shell">
             {/* ── Top bar ── */}
             <header className="editor-topbar">
-                <a href="/" className="nav-logo">Coursework</a>
+                <a href={`${process.env.NEXT_PUBLIC_BASE_PATH}/`} className="nav-logo">Coursework</a>
                 <span className="editor-title">{meta.title}</span>
                 <div className="editor-topbar-actions">
                     {saving && <span className="save-status">Saving…</span>}

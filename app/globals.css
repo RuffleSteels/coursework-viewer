@@ -927,8 +927,8 @@ html, body {
 
 .btn:hover { border-color: var(--border-hover); background: var(--surface-2); }
 .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.btn--accent { border-color: var(--accent-dim); color: var(--accent); }
-.btn--accent:hover { background: rgba(200, 185, 122, 0.08); }
+.btn--accent { background: rgba(200, 185, 122, 0.1);border-color: var(--accent-dim); color: var(--accent); }
+.btn--accent:hover { background: rgba(200, 185, 122, 0.3); }
 
 /* ── Home page ── */
 .home-main {

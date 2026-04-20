@@ -5,6 +5,7 @@ import { getPresentationMeta } from "@/app/lib/pdf-processor";
 import { Suspense } from "react";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/lib/auth";
+import {signOut} from "next-auth/react";
 
 interface Props {
     params: Promise<{ id: string }>;
@@ -45,8 +46,12 @@ export default async function ViewPage({ params }: Props) {
         <Suspense fallback={<div className="editor-loading"><div className="spinner" />Loading viewer…</div>}>
             {
                 isAdmin ? <header className="editor-topbar">
-                    <a href="/" className="nav-logo">Coursework</a>
+                    <a href={`${process.env.NEXT_PUBLIC_BASE_PATH}/`} className="nav-logo">Coursework</a>
                     <span className="editor-title">{meta.title}</span>
+                    <a className={'editor-title'} style={{
+                        width: '100%',
+                        textAlign:'right'
+                    }} href="/api/auth/signout">Sign Out</a>
                 </header> : null
             }
 

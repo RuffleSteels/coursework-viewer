@@ -467,16 +467,36 @@ export function SlideViewer({
     );
 
     if (!isAuthorized && isPublic) return (
-        <div className="password-gate" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '20px', background: 'var(--bg)' }}>
+        <div className="password-gate" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '20px', background: 'var(--bg)', padding: '0 24px' }}>
             <div style={{ textAlign: 'center' }}>
                 <h1 style={{ marginBottom: '8px' }}>{title}</h1>
                 <p style={{ color: 'var(--text-muted)' }}>This presentation is password protected.</p>
             </div>
-            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '300px' }}>
+            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px', width:'100%',maxWidth: '300px' }}>
                 <input type="password" className="title-field" style={{ width: '100%' }} placeholder="Enter password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} autoFocus />
                 {authError && <p style={{ color: 'var(--danger)', fontSize: '13px', textAlign: 'center' }}>{authError}</p>}
                 <button type="submit" className="btn btn--accent">View Presentation</button>
             </form>
+            <div style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                <Link
+                    href={`${process.env.NEXT_PUBLIC_BASE_PATH}/`}
+                    className="btn"
+                    style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        padding: '12px',
+                        display: 'flex',
+                        marginTop: '8px',
+                        background: 'transparent',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-muted)',
+                        fontSize: '14px',
+                        textDecoration: 'none'
+                    }}
+                >
+                    ← Back to Home
+                </Link>
+            </div>
         </div>
     );
 
@@ -657,7 +677,7 @@ export function SlideViewer({
                                     display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '70%',
                                     pointerEvents: 'auto',
                                 }}>
-                                    {folders.map(folder => (
+                                    {isMobile ? null : folders.map(folder => (
                                         <div key={folder.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                             <button
                                                 className="btn"
