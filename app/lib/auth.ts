@@ -11,7 +11,7 @@ export const authOptions: NextAuthOptions = {
                 password: { label: "Password", type: "password" }
             },
             async authorize(credentials) {
-                if (credentials?.username === "admin" && credentials?.password === "Fruit0402!") {
+                if (credentials?.username === "admin" && credentials?.password === process.env.ADMIN_PASSWORD) {
                     return { id: "1", name: "Admin", email: "admin@folium.com", role: "admin" };
                 }
                 return null;
