@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const meta = getPresentationMeta(id);
     if (!meta) return { title: "Not Found" };
     return {
-        title: `${meta.title} — Folium`,
+        title: `${meta.title} — Coursework`,
         openGraph: {
             title: meta.title,
             images: [`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${id}/thumb-0001.webp`],
@@ -45,7 +45,7 @@ export default async function ViewPage({ params }: Props) {
         <Suspense fallback={<div className="editor-loading"><div className="spinner" />Loading viewer…</div>}>
             {
                 isAdmin ? <header className="editor-topbar">
-                    <a href="/" className="nav-logo">Folium</a>
+                    <a href="/" className="nav-logo">Coursework</a>
                     <span className="editor-title">{meta.title}</span>
                 </header> : null
             }

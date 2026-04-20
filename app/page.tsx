@@ -24,7 +24,7 @@ export default async function HomePage() {
   return (
       <div className="page">
         <nav className="nav">
-          <a href="/" className="nav-logo">Folium</a>
+          <a href="/" className="nav-logo">Coursework</a>
         </nav>
 
         <main className="home-main">

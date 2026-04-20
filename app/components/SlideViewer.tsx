@@ -40,7 +40,7 @@ export function SlideViewer({
                             }: SlideViewerProps) {
     const { data: session } = useSession();
     const isAdmin = (session?.user as any)?.role === 'admin';
-
+    const [showBookmarkPills, setShowBookmarkPills] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [videoOverlays, setVideoOverlays] = useState<VideoOverlay[]>([]);
     const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -450,7 +450,7 @@ export function SlideViewer({
                 </aside>
 
                 <main className="editor-main">
-                    {folders.length > 0 && (
+                    {showBookmarkPills && folders.length > 0 && (
                         <div className="bookmarks-bar" style={{
                             position: 'absolute', top: '20px', left: '20px', zIndex: 100,
                             display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '80%'
@@ -611,24 +611,41 @@ export function SlideViewer({
                         </button>
 
                         <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
-
-                        <button className="ctrl-btn" onClick={toggleFullscreen} title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
-                            {isFullscreen ? (
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="4 14 10 14 10 20" />
-                                    <polyline points="20 10 14 10 14 4" />
-                                    <line x1="10" y1="14" x2="3" y2="21" />
-                                    <line x1="21" y1="3" x2="14" y2="10" />
+                        <button
+                            className="ctrl-btn"
+                            onClick={() => setShowBookmarkPills(p => !p)}
+                            title={showBookmarkPills ? "Hide bookmarks" : "Show bookmarks"}
+                        >
+                            {showBookmarkPills ? (
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                                 </svg>
                             ) : (
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="15 3 21 3 21 9" />
-                                    <polyline points="9 21 3 21 3 15" />
-                                    <line x1="21" y1="3" x2="14" y2="10" />
-                                    <line x1="3" y1="21" x2="10" y2="14" />
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                                 </svg>
                             )}
                         </button>
+                        {
+                            isMobile ? null : <button className="ctrl-btn" onClick={toggleFullscreen} title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+                                {isFullscreen ? (
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="4 14 10 14 10 20" />
+                                        <polyline points="20 10 14 10 14 4" />
+                                        <line x1="10" y1="14" x2="3" y2="21" />
+                                        <line x1="21" y1="3" x2="14" y2="10" />
+                                    </svg>
+                                ) : (
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="15 3 21 3 21 9" />
+                                        <polyline points="9 21 3 21 3 15" />
+                                        <line x1="21" y1="3" x2="14" y2="10" />
+                                        <line x1="3" y1="21" x2="10" y2="14" />
+                                    </svg>
+                                )}
+                            </button>
+                        }
+
 
                         {/* Grid button — only visible on mobile, lives here next to fullscreen */}
                         {isMobile && (

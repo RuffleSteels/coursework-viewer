@@ -178,7 +178,7 @@ html, body {
   flex-shrink: 0;
   background: #fff;
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 8px 64px rgba(0,0,0,0.5);
 }
 .fullscreen-container {
