@@ -63,6 +63,9 @@ export function SlideViewer({
     const dragBookmark = useRef<{ folderIdx: number; bookmarkIdx: number } | null>(null);
     const dragOverBookmark = useRef<{ folderIdx: number; bookmarkIdx: number } | null>(null);
     // Zoom state
+    const zoomRef = useRef(1);
+    const panRef = useRef({ x: 0, y: 0 });
+    const lastTouchEnd = useRef<number>(0);
     const [zoom, setZoom] = useState(1);
     const [panX, setPanX] = useState(0);
     const [panY, setPanY] = useState(0);
@@ -223,10 +226,11 @@ export function SlideViewer({
         return () => el.removeEventListener("wheel", onWheel);
     }, []);
 
-
-    // Click to zoom in on position, click again to zoom out
     const handleSlideClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        // Ignore click events fired synthetically after a touch
+        if (Date.now() - lastTouchEnd.current < 500) return;
         if (isPanning.current) return;
+
         const el = slideFrameRef.current;
         if (!el) return;
 
@@ -234,10 +238,8 @@ export function SlideViewer({
             resetZoom();
         } else {
             const rect = el.getBoundingClientRect();
-            // Offset from centre of the element (since transformOrigin is center center)
             const offsetFromCenterX = e.clientX - (rect.left + rect.width / 2);
             const offsetFromCenterY = e.clientY - (rect.top + rect.height / 2);
-            // To keep the clicked point stationary after scaling, pan by the inverse
             const newZoom = ZOOMED_SCALE;
             setPanX(-offsetFromCenterX * (newZoom - 1));
             setPanY(-offsetFromCenterY * (newZoom - 1));
@@ -266,6 +268,64 @@ export function SlideViewer({
         window.addEventListener("mousemove", onMove);
         window.addEventListener("mouseup", onUp);
     }, [zoom, panX, panY]);
+    const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        if (isMobile) return; // browser handles everything on mobile
+        isPanning.current = false;
+        lastPinchDist.current = null;
+        if (e.touches.length === 1) {
+            panStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX, panY };
+        }
+    }, [isMobile, panX, panY]);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        if (isMobile) {
+            // Just handle tap to zoom in/out, browser handles pinch natively
+            lastTouchEnd.current = Date.now();
+            if (!isPanning.current && e.changedTouches.length === 1 && e.touches.length === 0) {
+                if (zoom > 1) {
+                    resetZoom();
+                } else {
+                    const el = slideFrameRef.current;
+                    if (!el) return;
+                    const rect = el.getBoundingClientRect();
+                    const offsetFromCenterX = e.changedTouches[0].clientX - (rect.left + rect.width / 2);
+                    const offsetFromCenterY = e.changedTouches[0].clientY - (rect.top + rect.height / 2);
+                    const newZoom = ZOOMED_SCALE;
+                    setPanX(-offsetFromCenterX * (newZoom - 1));
+                    setPanY(-offsetFromCenterY * (newZoom - 1));
+                    setZoom(newZoom);
+                }
+            }
+            return;
+        }
+
+        // Desktop touch end
+        if (e.touches.length < 2) lastPinchDist.current = null;
+        if (isPanning.current) {
+            setPanX(panRef.current.x);
+            setPanY(panRef.current.y);
+            const inner = slideFrameRef.current?.firstElementChild as HTMLElement;
+            if (inner) inner.style.transition = 'transform 0.2s ease';
+        }
+        if (!isPanning.current && e.changedTouches.length === 1 && e.touches.length === 0) {
+            lastTouchEnd.current = Date.now();
+            if (zoom > 1) {
+                resetZoom();
+            } else {
+                const el = slideFrameRef.current;
+                if (!el) return;
+                const rect = el.getBoundingClientRect();
+                const offsetFromCenterX = e.changedTouches[0].clientX - (rect.left + rect.width / 2);
+                const offsetFromCenterY = e.changedTouches[0].clientY - (rect.top + rect.height / 2);
+                const newZoom = ZOOMED_SCALE;
+                setPanX(-offsetFromCenterX * (newZoom - 1));
+                setPanY(-offsetFromCenterY * (newZoom - 1));
+                setZoom(newZoom);
+            }
+        }
+        setTimeout(() => { isPanning.current = false; }, 0);
+    }, [isMobile, zoom, resetZoom, panX, panY]);
+    const lastPinchDist = useRef<number | null>(null);
 
     // Clamp pan so you can't drag the slide fully off screen
     useEffect(() => {
@@ -566,7 +626,13 @@ export function SlideViewer({
                                     className="slide-frame"
                                     onClick={handleSlideClick}
                                     onMouseDown={handleMouseDown}
-                                    style={{ cursor: zoom > 1 ? 'grab' : 'zoom-in', overflow: 'hidden' }}
+                                    onTouchStart={handleTouchStart}
+                                    onTouchEnd={handleTouchEnd}
+                                    style={{
+                                        cursor: zoom > 1 ? 'grab' : 'zoom-in',
+                                        // overflow: 'hidden',
+                                        // touchAction: 'none',
+                                    }}
                                 >
                                     <div style={{
                                         transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,

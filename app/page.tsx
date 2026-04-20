@@ -49,7 +49,7 @@ export default async function HomePage() {
                     {presentations.map((p) => (
                         <Link
                             key={p.id}
-                            href={`${process.env.NEXT_PUBLIC_BASE_PATH}/view/${p.id}`}
+                            href={`/view/${p.id}`}
                             className="presentation-row"
                         >
                           <span className="presentation-title">{p.title}</span>
