@@ -402,7 +402,7 @@ export function SlideViewer({
                                     draggable={false}
                                     decoding="async"
                                     style={{
-                                        width: "90vw",
+                                        // width: "90vw",
                                         height: "auto",
                                         objectFit: "contain",
                                         display: "block"
