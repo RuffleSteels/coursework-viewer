@@ -35,7 +35,7 @@ export default async function ViewPage({ params }: Props) {
 
     // If it's not public and not admin, redirect to sign in
     if (!meta.isPublic && !isAdmin) {
-        redirect("/auth/signin?callbackUrl=/view/" + id);
+        redirect(`${process.env.NEXT_PUBLIC_BASE_PATH}/auth/signin?callbackUrl=/view/` + id);
     }
 
     // Note: If meta.isPublic is true, we show the SlideViewer.

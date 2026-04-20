@@ -46,7 +46,7 @@ export function UploadZone() {
                     return;
                 }
 
-                router.push(`/view/${data.presentationId}`);
+                router.push(`${process.env.NEXT_PUBLIC_BASE_PATH}/view/${data.presentationId}`);
             } catch (err) {
                 setState({ status: "error", message: String(err) });
             }

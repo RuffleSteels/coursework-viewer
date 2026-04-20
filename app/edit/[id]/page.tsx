@@ -61,7 +61,7 @@ function EditorContent() {
     // ── Auth Check ──
     useEffect(() => {
         if (status === "unauthenticated") {
-            router.push(`/auth/signin?callbackUrl=/edit/${id}`);
+            router.push(`${process.env.NEXT_PUBLIC_BASE_PATH}/auth/signin?callbackUrl=/edit/${id}`);
         }
     }, [status, router, id]);
 
@@ -332,7 +332,7 @@ function EditorContent() {
                     >
                         {compressing ? "Compressing..." : "Compress Slides"}
                     </button>
-                    <a href={`/view/${id}#1`} className="btn btn--accent" target="_blank" rel="noopener">
+                    <a href={`${process.env.NEXT_PUBLIC_BASE_PATH}/view/${id}#1`} className="btn btn--accent" target="_blank" rel="noopener">
                         Preview from slide 1 ↗
                     </a>
                     <button
@@ -501,7 +501,7 @@ function EditorContent() {
                         </button>
                         
                         <a 
-                            href={`/view/${id}#${currentSlide}`} 
+                            href={`${process.env.NEXT_PUBLIC_BASE_PATH}/view/${id}#${currentSlide}`}
                             className="btn" 
                             target="_blank" 
                             rel="noopener"
