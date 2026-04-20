@@ -7,8 +7,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 // 1. Move your logic into a sub-component
 function SignInForm() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const basePath =
+      process.env.NEXT_PUBLIC_BASE_PATH || "/coursework";
 
+  const callbackUrl =
+      searchParams.get("callbackUrl") || basePath;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
