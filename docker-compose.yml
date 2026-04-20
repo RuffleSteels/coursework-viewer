@@ -12,9 +12,7 @@ services:
     expose:
       - "3000"
     volumes:
-      # Mount the entire public directory from the host to the container.
-      # This ensures processed presentations and static assets are shared.
-      - ./public:/app/public
+      - ./public/slides:/app/public/slides
     networks:
       - proxy-net
     env_file:
