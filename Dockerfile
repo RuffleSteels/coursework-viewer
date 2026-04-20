@@ -26,7 +26,8 @@ RUN apk add --no-cache ghostscript curl
 
 # Copy only what we need
 COPY --from=builder /app/next.config.ts ./
-COPY --from=builder /app/public ./public
+# We skip copying the public folder here so it doesn't bloat the image.
+# We will mount it as a volume in docker-compose instead.
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
