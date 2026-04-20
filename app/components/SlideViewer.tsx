@@ -604,7 +604,111 @@ export function SlideViewer({
                     <div className="editor-stage-wrap">
                         <div className="fullscreen-container" ref={stageWrapRef}>
                             {isFullscreen && mouseMoving && (
-                                <button onClick={toggleFullscreen} style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: '#fff', cursor: 'pointer' }}>×</button>
+                                <div style={{
+                                    position: 'absolute', top: '16px', right: '16px', zIndex: 200,
+                                    display: 'flex', gap: '8px', alignItems: 'center'
+                                }}>
+                                    {/* Bookmark toggle in fullscreen */}
+                                    <button
+                                        onClick={() => setShowBookmarkPills(p => !p)}
+                                        title={showBookmarkPills ? "Hide bookmarks" : "Show bookmarks"}
+                                        style={{
+                                            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+                                            border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px',
+                                            width: '36px', height: '36px', display: 'flex', alignItems: 'center',
+                                            justifyContent: 'center', color: '#fff', cursor: 'pointer'
+                                        }}
+                                    >
+                                        {showBookmarkPills ? (
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                                            </svg>
+                                        ) : (
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                    {/* Exit fullscreen */}
+                                    <button
+                                        onClick={toggleFullscreen}
+                                        title="Exit fullscreen"
+                                        style={{
+                                            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+                                            border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px',
+                                            width: '36px', height: '36px', display: 'flex', alignItems: 'center',
+                                            justifyContent: 'center', color: '#fff', cursor: 'pointer'
+                                        }}
+                                    >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="4 14 10 14 10 20" />
+                                            <polyline points="20 10 14 10 14 4" />
+                                            <line x1="10" y1="14" x2="3" y2="21" />
+                                            <line x1="21" y1="3" x2="14" y2="10" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Bookmarks bar — lives here so it's visible in fullscreen */}
+                            {showBookmarkPills && folders.length > 0 && (
+                                <div style={{
+                                    position: 'absolute', top: '20px', left: '20px', zIndex: 100,
+                                    display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '70%',
+                                    pointerEvents: 'auto',
+                                }}>
+                                    {folders.map(folder => (
+                                        <div key={folder.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <button
+                                                className="btn"
+                                                onClick={() => toggleFolder(folder.id)}
+                                                style={{
+                                                    background: folder.color, color: '#fff', border: 'none',
+                                                    fontSize: '11px', fontWeight: 'bold', padding: '4px 12px',
+                                                    borderRadius: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                                    alignSelf: 'flex-start', transition: 'transform 0.1s, opacity 0.1s',
+                                                    opacity: openFolderIds.has(folder.id) ? 1 : 0.85,
+                                                }}
+                                                onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                                                onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                            >
+                        <span style={{
+                            display: 'inline-block',
+                            transform: openFolderIds.has(folder.id) ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s', fontSize: '9px',
+                        }}>▶</span>
+                                                {folder.name}
+                                                <span style={{ opacity: 0.7, fontSize: '10px' }}>({folder.bookmarks?.length})</span>
+                                            </button>
+                                            {openFolderIds.has(folder.id) && folder.bookmarks?.length > 0 && (
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingLeft: '12px' }}>
+                                                    {folder.bookmarks?.map(b => (
+                                                        <button
+                                                            key={b.id}
+                                                            className="btn"
+                                                            onClick={() => goTo(b.slide)}
+                                                            style={{
+                                                                background: folder.color, color: '#fff', border: 'none',
+                                                                fontSize: '11px', fontWeight: 'bold', padding: '4px 12px',
+                                                                borderRadius: '20px', opacity: 0.75,
+                                                                boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                                                                transition: 'transform 0.1s, opacity 0.1s',
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.75'}
+                                                            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                                                            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                                        >
+                                                            {b.name}
+                                                            <span style={{ opacity: 0.6, fontSize: '9px', marginLeft: '4px' }}>p.{b.slide}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             )}
 
                             {/* Zoom hint */}
@@ -614,12 +718,12 @@ export function SlideViewer({
                                     background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
                                     color: '#fff', fontSize: '11px', padding: '4px 10px',
                                     borderRadius: '20px', pointerEvents: 'none',
-                                    // Don't render zoom hint on mobile — too cluttered
                                     display: isMobile ? 'none' : 'block',
                                 }}>
                                     {Math.round(zoom * 100)}% — click to reset
                                 </div>
                             )}
+
                             <div className="ratio-stage" style={{ "--aspect": aspectRatio } as React.CSSProperties}>
                                 <div
                                     ref={slideFrameRef}
@@ -630,13 +734,12 @@ export function SlideViewer({
                                     onTouchEnd={handleTouchEnd}
                                     style={{
                                         cursor: zoom > 1 ? 'grab' : 'zoom-in',
-                                        // overflow: 'hidden',
-                                        // touchAction: 'none',
+                                        touchAction: isMobile ? 'auto' : 'none',
                                     }}
                                 >
                                     <div style={{
                                         transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-                                        transformOrigin: 'center center',   // ← was '0 0'
+                                        transformOrigin: 'center center',
                                         transition: isPanning.current ? 'none' : 'transform 0.2s ease',
                                         width: '100%',
                                         height: '100%',
