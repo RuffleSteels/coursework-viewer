@@ -4,7 +4,7 @@ const isProd = process.env.NODE_ENV === 'production';
 const nextConfig = {
     // Only apply the subpath prefix when building for production
     basePath: isProd ? '/coursework' : '',
-    // assetPrefix: isProd ? '/coursework' : '',
+    assetPrefix: isProd ? '/coursework' : '',
 
     // These moved out of 'experimental' in Next.js 15
     serverExternalPackages: ["sharp"],
