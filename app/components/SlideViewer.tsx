@@ -308,8 +308,18 @@ export function SlideViewer({
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                             <button key={n} className={`slide-thumb-btn ${n === currentPage ? "slide-thumb-btn--active" : ""}`} onClick={() => goTo(n)}>
                                 <div className="slide-thumb-img" style={{ aspectRatio: aspectRatio }}>
-                                    <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`} alt={`Slide ${n}`} fill style={{ objectFit: 'cover' }} />
-                                </div>
+                                    <img
+                                        src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`}
+                                        alt={`Slide ${n}`}
+                                        loading="lazy"
+                                        decoding="async"
+                                        style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            objectFit: "cover",
+                                            display: "block"
+                                        }}
+                                    />                                </div>
                                 <span className="slide-thumb-num">{n}</span>
                             </button>
                         ))}
@@ -384,8 +394,20 @@ export function SlideViewer({
                         <div className="ratio-stage" style={{ "--aspect": aspectRatio } as React.CSSProperties}>
 
                             <div className="slide-frame">
-                                <Image key={currentPage} src={slideUrl(currentPage)} alt={`Slide ${currentPage}`} fill priority sizes="90vw" className="slide-img-full" draggable={false} />
-                                <VideoLayer overlays={videoOverlays} currentPage={currentPage} presentationId={presentationId} />
+                                <img
+                                    key={currentPage}
+                                    src={slideUrl(currentPage)}
+                                    alt={`Slide ${currentPage}`}
+                                    className="slide-img-full"
+                                    draggable={false}
+                                    decoding="async"
+                                    style={{
+                                        width: "90vw",
+                                        height: "auto",
+                                        objectFit: "contain",
+                                        display: "block"
+                                    }}
+                                />                                <VideoLayer overlays={videoOverlays} currentPage={currentPage} presentationId={presentationId} />
                             </div>
                             <button className="click-zone click-zone--prev" onClick={prev} disabled={currentPage === 1} />
                             <button className="click-zone click-zone--next" onClick={next} disabled={currentPage === totalPages} />
