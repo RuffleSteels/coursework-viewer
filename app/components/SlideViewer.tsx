@@ -287,7 +287,7 @@ export function SlideViewer({
         );
     }
 
-    const slideUrl = (page: number) => `/slides/${presentationId}/slide-${String(page).padStart(4, "0")}.webp`;
+    const slideUrl = (page: number) => `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/slide-${String(page).padStart(4, "0")}.webp`;
 
     return (
         <div className="editor-shell" style={{ height: isAdmin ?  'calc(100dvh - 64px)' : '100dvh' }}>
@@ -308,7 +308,7 @@ export function SlideViewer({
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                             <button key={n} className={`slide-thumb-btn ${n === currentPage ? "slide-thumb-btn--active" : ""}`} onClick={() => goTo(n)}>
                                 <div className="slide-thumb-img" style={{ aspectRatio: aspectRatio }}>
-                                    <Image src={`/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`} alt={`Slide ${n}`} fill style={{ objectFit: 'cover' }} />
+                                    <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`} alt={`Slide ${n}`} fill style={{ objectFit: 'cover' }} />
                                 </div>
                                 <span className="slide-thumb-num">{n}</span>
                             </button>
