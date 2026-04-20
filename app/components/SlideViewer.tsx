@@ -56,7 +56,7 @@ export function SlideViewer({
 
     const verifyPassword = useCallback(async (password: string) => {
         try {
-            const res = await fetch(`/api/presentations/${presentationId}/auth`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/auth`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password })
@@ -98,12 +98,12 @@ export function SlideViewer({
     }, [isAdmin, isPublic, presentationId, verifyPassword]);
 
     useEffect(() => {
-        fetch(`/api/presentations/${presentationId}/videos`, { cache: "no-store" })
+        fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/videos`, { cache: "no-store" })
             .then((r) => r.json())
             .then((data: VideoOverlay[]) => setVideoOverlays(data))
             .catch(() => setVideoOverlays([]));
         
-        fetch(`/api/presentations/${presentationId}/bookmarks`)
+        fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/bookmarks`)
             .then((r) => r.json())
             .then((data: Bookmark[]) => setBookmarks(data))
             .catch(() => setBookmarks([]));
@@ -180,7 +180,7 @@ export function SlideViewer({
 
         setIsSharing(true);
         try {
-            const res = await fetch(`/api/presentations/${presentationId}/share`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/share`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isPublic: !isPublic, password })
@@ -214,7 +214,7 @@ export function SlideViewer({
 
     const saveBookmarks = async (newBookmarks: Bookmark[]) => {
         setBookmarks(newBookmarks);
-        await fetch(`/api/presentations/${presentationId}/bookmarks`, {
+        await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/bookmarks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bookmarks: newBookmarks })

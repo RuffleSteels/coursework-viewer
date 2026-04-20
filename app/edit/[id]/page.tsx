@@ -69,7 +69,7 @@ function EditorContent() {
     useEffect(() => {
         if (status !== "authenticated") return;
         
-        fetch(`/api/presentations/${id}`)
+        fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${id}`)
             .then((r) => r.json())
             .then((data) => {
                 setMeta(data);
@@ -81,7 +81,7 @@ function EditorContent() {
             })
             .catch(() => setError("Presentation not found"));
 
-        fetch(`/api/presentations/${id}/videos`)
+        fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${id}/videos`)
             .then((r) => r.json())
             .then(setOverlays)
             .catch(() => setOverlays([]));
@@ -92,7 +92,7 @@ function EditorContent() {
         async (updated: VideoOverlay[]) => {
             setSaving(true);
             setSaved(false);
-            await fetch(`/api/presentations/${id}/videos`, {
+            await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${id}/videos`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updated),
@@ -134,7 +134,7 @@ function EditorContent() {
             fd.append("slideNumber", String(currentSlide));
 
             try {
-                const res = await fetch(`/api/presentations/${id}/videos`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${id}/videos`, {
                     method: "POST",
                     body: fd,
                 });
@@ -156,7 +156,7 @@ function EditorContent() {
     const deleteOverlay = useCallback(
         async (videoId: string) => {
             if (!confirm("Delete this video overlay?")) return;
-            await fetch(`/api/presentations/${id}/videos`, {
+            await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${id}/videos`, {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ videoId }),
@@ -172,7 +172,7 @@ function EditorContent() {
         if (!confirm("PERMANENTLY delete this entire presentation and all its videos?")) return;
         setDeleting(true);
         try {
-            const res = await fetch(`/api/presentations/${id}`, { method: "DELETE" });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${id}`, { method: "DELETE" });
             if (res.ok) {
                 router.push("/");
             } else {
@@ -192,7 +192,7 @@ function EditorContent() {
 
         setCompressing(true);
         try {
-            const res = await fetch(`/api/presentations/${id}/recompress`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${id}/recompress`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ quality: parseInt(quality) }),

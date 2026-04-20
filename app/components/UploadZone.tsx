@@ -38,7 +38,7 @@ export function UploadZone() {
             try {
                 setState({ status: "uploading", progress: "Processing pages… (this may take a minute for large PDFs)" });
 
-                const res = await fetch("/api/upload", { method: "POST", body: fd });
+                const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/upload`, { method: "POST", body: fd });
                 const data = await res.json();
 
                 if (!res.ok) {
