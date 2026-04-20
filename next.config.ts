@@ -1,10 +1,17 @@
 /** @type {import('next').NextConfig} */
+const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
+    // Only apply the subpath prefix when building for production
+    basePath: isProd ? '/coursework' : '',
+    assetPrefix: isProd ? '/coursework' : '',
+
+    // These moved out of 'experimental' in Next.js 15
+    serverExternalPackages: ["sharp"],
+
     experimental: {
-        serverComponentsExternalPackages: ["sharp"],
-        serverActionsBodySizeLimit: "210mb",
         serverActions: {
-            bodySizeLimit: '200mb', // or '5mb', '20mb', etc.
+            bodySizeLimit: '210mb',
         },
     },
 
@@ -33,6 +40,9 @@ const nextConfig = {
         config.resolve.alias.canvas = false;
         return config;
     },
+
+    // Ensure standalone output for Docker
+    output: 'standalone',
 };
 
 export default nextConfig;
