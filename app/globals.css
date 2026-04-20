@@ -225,7 +225,10 @@ html, body {
   position: absolute;
   inset: 0;
 }
-
+/*.slide-img-full {*/
+/*  image-rendering: -webkit-optimize-contrast; !* Chrome/Safari *!*/
+/*  image-rendering: crisp-edges;               !* Firefox *!*/
+/*}*/
 .slide-img-full {
   display: block;
   width: 100%;
@@ -1434,7 +1437,7 @@ html, body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 20px;
+  /*padding: 20px;*/
 }
 
 .editor-shell .editor-stage {

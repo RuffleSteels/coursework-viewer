@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import type { VideoOverlay } from "@/app/lib/video-overlays";
 import type { Bookmark } from "@/app/lib/pdf-processor";
@@ -24,6 +23,13 @@ const BOOKMARK_COLORS = [
     { name: 'Purple', value: '#a855f7' },
     { name: 'Orange', value: '#f97316' },
 ];
+interface BookmarkFolder {
+    id: string;
+    name: string;
+    color: string;
+    bookmarks: Bookmark[];
+}
+const ZOOMED_SCALE = 2;
 
 export function SlideViewer({
                                 presentationId,
@@ -34,10 +40,12 @@ export function SlideViewer({
                             }: SlideViewerProps) {
     const { data: session } = useSession();
     const isAdmin = (session?.user as any)?.role === 'admin';
-    
+
     const [currentPage, setCurrentPage] = useState(1);
     const [videoOverlays, setVideoOverlays] = useState<VideoOverlay[]>([]);
     const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+    const [folders, setFolders] = useState<BookmarkFolder[]>([]);
+    const [openFolderIds, setOpenFolderIds] = useState<Set<string>>(new Set());
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showGrid, setShowGrid] = useState(false);
     const [gridScale, setGridScale] = useState(150);
@@ -49,10 +57,31 @@ export function SlideViewer({
     const [authError, setAuthError] = useState("");
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
     const [showBookmarksEditor, setShowBookmarksEditor] = useState(false);
-    const dragItem = useRef<number | null>(null);
-    const dragOverItem = useRef<number | null>(null);
+// Add these refs back at the top with your other refs:
+    const dragFolder = useRef<number | null>(null);
+    const dragOverFolder = useRef<number | null>(null);
+    const dragBookmark = useRef<{ folderIdx: number; bookmarkIdx: number } | null>(null);
+    const dragOverBookmark = useRef<{ folderIdx: number; bookmarkIdx: number } | null>(null);
+    // Zoom state
+    const [zoom, setZoom] = useState(1);
+    const [panX, setPanX] = useState(0);
+    const [panY, setPanY] = useState(0);
+    const isPanning = useRef(false);
+    const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+    const slideFrameRef = useRef<HTMLDivElement>(null);
+
     const sidebarRef = useRef<HTMLDivElement>(null);
     const mouseTimer = useRef<NodeJS.Timeout | null>(null);
+    const stageWrapRef = useRef<HTMLDivElement>(null);
+
+    const slideUrl = (page: number) =>
+        `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/slide-${String(page).padStart(4, "0")}.webp`;
+
+    const resetZoom = useCallback(() => {
+        setZoom(1);
+        setPanX(0);
+        setPanY(0);
+    }, []);
 
     const verifyPassword = useCallback(async (password: string) => {
         try {
@@ -74,7 +103,6 @@ export function SlideViewer({
         }
     }, [presentationId]);
 
-    // Initial check for public access and stored password
     useEffect(() => {
         const checkAccess = async () => {
             if (isAdmin || !isPublic) {
@@ -82,37 +110,61 @@ export function SlideViewer({
                 setIsCheckingAuth(false);
                 return;
             }
-
             const storedPassword = localStorage.getItem(`folium_auth_${presentationId}`);
             if (storedPassword) {
                 const success = await verifyPassword(storedPassword);
-                if (success) {
-                    setIsCheckingAuth(false);
-                    return;
-                }
+                if (success) { setIsCheckingAuth(false); return; }
             }
             setIsCheckingAuth(false);
         };
-        
         checkAccess();
     }, [isAdmin, isPublic, presentationId, verifyPassword]);
+// Add these handlers:
+    const handleFolderDragEnd = () => {
+        if (dragFolder.current === null || dragOverFolder.current === null) return;
+        const updated = [...folders];
+        const dragged = updated.splice(dragFolder.current, 1)[0];
+        updated.splice(dragOverFolder.current, 0, dragged);
+        dragFolder.current = null;
+        dragOverFolder.current = null;
+        saveFolders(updated);
+    };
 
+    const handleBookmarkDragEnd = (folderId: string) => {
+        if (!dragBookmark.current || !dragOverBookmark.current) return;
+        const { folderIdx: fromFolderIdx, bookmarkIdx: fromIdx } = dragBookmark.current;
+        const { folderIdx: toFolderIdx, bookmarkIdx: toIdx } = dragOverBookmark.current;
+        // Only reorder within same folder
+        if (fromFolderIdx !== toFolderIdx) return;
+        const updated = folders.map((f, fi) => {
+            if (fi !== fromFolderIdx) return f;
+            const bms = [...f.bookmarks];
+            const dragged = bms.splice(fromIdx, 1)[0];
+            bms.splice(toIdx, 0, dragged);
+            return { ...f, bookmarks: bms };
+        });
+        dragBookmark.current = null;
+        dragOverBookmark.current = null;
+        saveFolders(updated);
+    };
     useEffect(() => {
         fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/videos`, { cache: "no-store" })
             .then((r) => r.json())
             .then((data: VideoOverlay[]) => setVideoOverlays(data))
             .catch(() => setVideoOverlays([]));
-        
         fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/bookmarks`)
             .then((r) => r.json())
-            .then((data: Bookmark[]) => setBookmarks(data))
-            .catch(() => setBookmarks([]));
+            .then((data: BookmarkFolder[]) => setFolders(data))
+            .catch(() => setFolders([]));
+
+// save helper:
+
+
+
     }, [presentationId]);
 
     useEffect(() => {
-        if (isAuthorized) {
-            window.history.replaceState(null, "", `#${currentPage}`);
-        }
+        if (isAuthorized) window.history.replaceState(null, "", `#${currentPage}`);
     }, [currentPage, isAuthorized]);
 
     useEffect(() => {
@@ -122,17 +174,99 @@ export function SlideViewer({
 
     useEffect(() => {
         const activeThumb = sidebarRef.current?.querySelector('.slide-thumb-btn--active');
-        if (activeThumb) {
-            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, [currentPage]);
 
     const goTo = useCallback((page: number) => {
         setCurrentPage(Math.max(1, Math.min(totalPages, page)));
-    }, [totalPages]);
+        resetZoom();
+    }, [totalPages, resetZoom]);
 
     const next = useCallback(() => goTo(currentPage + 1), [currentPage, goTo]);
     const prev = useCallback(() => goTo(currentPage - 1), [currentPage, goTo]);
+
+    // Ctrl/Cmd + scroll to zoom
+    useEffect(() => {
+        const el = slideFrameRef.current;
+        if (!el) return;
+        const onWheel = (e: WheelEvent) => {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault();
+
+            const rect = el.getBoundingClientRect();
+            // Cursor offset from centre
+            const offsetFromCenterX = e.clientX - (rect.left + rect.width / 2);
+            const offsetFromCenterY = e.clientY - (rect.top + rect.height / 2);
+
+            setZoom(prevZoom => {
+                const delta = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+                const newZoom = Math.min(8, Math.max(1, prevZoom * delta));
+                const zoomDiff = newZoom - prevZoom;
+                setPanX(px => px - offsetFromCenterX * zoomDiff);
+                setPanY(py => py - offsetFromCenterY * zoomDiff);
+                return newZoom;
+            });
+        };
+        el.addEventListener("wheel", onWheel, { passive: false });
+        return () => el.removeEventListener("wheel", onWheel);
+    }, []);
+
+
+    // Click to zoom in on position, click again to zoom out
+    const handleSlideClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (isPanning.current) return;
+        const el = slideFrameRef.current;
+        if (!el) return;
+
+        if (zoom > 1) {
+            resetZoom();
+        } else {
+            const rect = el.getBoundingClientRect();
+            // Offset from centre of the element (since transformOrigin is center center)
+            const offsetFromCenterX = e.clientX - (rect.left + rect.width / 2);
+            const offsetFromCenterY = e.clientY - (rect.top + rect.height / 2);
+            // To keep the clicked point stationary after scaling, pan by the inverse
+            const newZoom = ZOOMED_SCALE;
+            setPanX(-offsetFromCenterX * (newZoom - 1));
+            setPanY(-offsetFromCenterY * (newZoom - 1));
+            setZoom(newZoom);
+        }
+    }, [zoom, resetZoom]);
+
+    // Pan while zoomed
+    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (zoom <= 1) return;
+        isPanning.current = false;
+        panStart.current = { x: e.clientX, y: e.clientY, panX, panY };
+        const onMove = (e: MouseEvent) => {
+            const dx = e.clientX - panStart.current.x;
+            const dy = e.clientY - panStart.current.y;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) isPanning.current = true;
+            setPanX(panStart.current.panX + dx);
+            setPanY(panStart.current.panY + dy);
+        };
+        const onUp = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+            // Reset isPanning flag after click handler fires
+            setTimeout(() => { isPanning.current = false; }, 0);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+    }, [zoom, panX, panY]);
+
+    // Clamp pan so you can't drag the slide fully off screen
+    useEffect(() => {
+        if (zoom <= 1) { setPanX(0); setPanY(0); return; }
+        const el = slideFrameRef.current;
+        if (!el) return;
+        const { width, height } = el.getBoundingClientRect();
+        // With center origin, max pan in either direction is half the overflow
+        const maxX = (width * (zoom - 1)) / 2;
+        const maxY = (height * (zoom - 1)) / 2;
+        setPanX(px => Math.min(maxX, Math.max(-maxX, px)));
+        setPanY(py => Math.min(maxY, Math.max(-maxY, py)));
+    }, [zoom, panX, panY]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -140,21 +274,20 @@ export function SlideViewer({
             if (e.target instanceof HTMLInputElement) return;
             if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); next(); }
             else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
-            else if (e.key === "f") { toggleFullscreen(); }
-            else if (e.key === "g") { setShowGrid(prev => !prev); }
-            else if (e.key === "Escape" && showGrid) { setShowGrid(false); }
+            else if (e.key === "f") toggleFullscreen();
+            else if (e.key === "g") setShowGrid(p => !p);
+            else if (e.key === "Escape") { if (showGrid) setShowGrid(false); if (zoom > 1) resetZoom(); }
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [next, prev, showGrid, isAuthorized]);
-
-    const stageWrapRef = useRef<HTMLDivElement>(null);
+    }, [next, prev, showGrid, isAuthorized, zoom, resetZoom]);
 
     const toggleFullscreen = () => {
         const el = stageWrapRef.current;
         if (!document.fullscreenElement) { el?.requestFullscreen(); setIsFullscreen(true); }
         else { document.exitFullscreen(); setIsFullscreen(false); }
     };
+
     useEffect(() => {
         const onFsc = () => setIsFullscreen(!!document.fullscreenElement);
         document.addEventListener("fullscreenchange", onFsc);
@@ -175,9 +308,8 @@ export function SlideViewer({
         let password = null;
         if (!isPublic) {
             password = prompt("Enter a password for this shared link:");
-            if (password === null) return; // cancelled
+            if (password === null) return;
         }
-
         setIsSharing(true);
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/share`, {
@@ -189,118 +321,103 @@ export function SlideViewer({
                 const data = await res.json();
                 setIsPublic(data.isPublic);
                 if (data.isPublic) {
-                    const url = window.location.href;
-                    await navigator.clipboard.writeText(url);
+                    await navigator.clipboard.writeText(window.location.href);
                     alert("Presentation is now public! Password set. URL copied to clipboard.");
                 } else {
                     alert("Presentation is now private.");
                 }
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsSharing(false);
-        }
+        } catch (e) { console.error(e); }
+        finally { setIsSharing(false); }
     };
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setAuthError("");
         const success = await verifyPassword(authPassword);
-        if (!success) {
-            setAuthError("Incorrect password");
-        }
+        if (!success) setAuthError("Incorrect password");
     };
 
-    const saveBookmarks = async (newBookmarks: Bookmark[]) => {
-        setBookmarks(newBookmarks);
+    const saveFolders = async (newFolders: BookmarkFolder[]) => {
+        setFolders(newFolders);
         await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/bookmarks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookmarks: newBookmarks })
+            body: JSON.stringify({ bookmarks: newFolders })
         });
     };
-
-    const addBookmark = () => {
-        const name = prompt("Enter bookmark name:");
+    const addFolder = () => {
+        const name = prompt("Folder name:");
         if (!name) return;
-        const newBookmark: Bookmark = {
-            id: Math.random().toString(36).substr(2, 9),
-            name,
-            slide: currentPage,
-            color: 'var(--accent)'
-        };
-        saveBookmarks([...bookmarks, newBookmark]);
+        const color = BOOKMARK_COLORS[folders.length % BOOKMARK_COLORS.length].value;
+        saveFolders([...folders, { id: Math.random().toString(36).substr(2, 9), name, color, bookmarks: [] }]);
     };
 
-    const deleteBookmark = (id: string) => {
-        saveBookmarks(bookmarks.filter(b => b.id !== id));
+    const deleteFolder = (folderId: string) => saveFolders(folders.filter(f => f.id !== folderId));
+
+    const updateFolder = (folderId: string, patch: Partial<BookmarkFolder>) =>
+        saveFolders(folders.map(f => f.id === folderId ? { ...f, ...patch } : f));
+
+    const addBookmarkToFolder = (folderId: string) => {
+        const name = prompt("Bookmark name:");
+        if (!name) return;
+        saveFolders(folders.map(f => f.id === folderId ? {
+            ...f,
+            bookmarks: [...f.bookmarks, {
+                id: Math.random().toString(36).substr(2, 9),
+                name,
+                slide: currentPage,
+                color: f.color
+            }]
+        } : f));
     };
 
-    const updateBookmark = (id: string, patch: Partial<Bookmark>) => {
-        saveBookmarks(bookmarks.map(b => b.id === id ? { ...b, ...patch } : b));
-    };
+    const deleteBookmarkFromFolder = (folderId: string, bookmarkId: string) =>
+        saveFolders(folders.map(f => f.id === folderId ? {
+            ...f, bookmarks: f.bookmarks.filter(b => b.id !== bookmarkId)
+        } : f));
 
-    const handleSort = () => {
-        if (dragItem.current === null || dragOverItem.current === null) return;
-        const _bookmarks = [...bookmarks];
-        const draggedItemContent = _bookmarks.splice(dragItem.current, 1)[0];
-        _bookmarks.splice(dragOverItem.current, 0, draggedItemContent);
-        dragItem.current = null;
-        dragOverItem.current = null;
-        saveBookmarks(_bookmarks);
-    };
+    const updateBookmarkInFolder = (folderId: string, bookmarkId: string, patch: Partial<Bookmark>) =>
+        saveFolders(folders.map(f => f.id === folderId ? {
+            ...f, bookmarks: f.bookmarks.map(b => b.id === bookmarkId ? { ...b, ...patch } : b)
+        } : f));
 
-    if (isCheckingAuth) {
-        return (
-            <div className="editor-loading">
-                <div className="spinner" />
-                <p>Verifying access…</p>
+    const toggleFolder = (folderId: string) => {
+        setOpenFolderIds(prev => {
+            const next = new Set(prev);
+            if (next.has(folderId)) next.delete(folderId);
+            else next.add(folderId);
+            return next;
+        });
+    };
+    if (isCheckingAuth) return (
+        <div className="editor-loading"><div className="spinner" /><p>Verifying access…</p></div>
+    );
+
+    if (!isAuthorized && isPublic) return (
+        <div className="password-gate" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '20px', background: 'var(--bg)' }}>
+            <div style={{ textAlign: 'center' }}>
+                <h1 style={{ marginBottom: '8px' }}>{title}</h1>
+                <p style={{ color: 'var(--text-muted)' }}>This presentation is password protected.</p>
             </div>
-        );
-    }
-
-    if (!isAuthorized && isPublic) {
-        return (
-            <div className="password-gate" style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                height: '100vh', gap: '20px', background: 'var(--bg)'
-            }}>
-                <div style={{ textAlign: 'center' }}>
-                    <h1 style={{ marginBottom: '8px' }}>{title}</h1>
-                    <p style={{ color: 'var(--text-muted)' }}>This presentation is password protected.</p>
-                </div>
-                <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '300px' }}>
-                    <input
-                        type="password"
-                        className="title-field"
-                        style={{ width: '100%' }}
-                        placeholder="Enter password"
-                        value={authPassword}
-                        onChange={(e) => setAuthPassword(e.target.value)}
-                        autoFocus
-                    />
-                    {authError && <p style={{ color: 'var(--danger)', fontSize: '13px', textAlign: 'center' }}>{authError}</p>}
-                    <button type="submit" className="btn btn--accent">View Presentation</button>
-                </form>
-            </div>
-        );
-    }
-
-    const slideUrl = (page: number) => `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/slide-${String(page).padStart(4, "0")}.webp`;
+            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '300px' }}>
+                <input type="password" className="title-field" style={{ width: '100%' }} placeholder="Enter password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} autoFocus />
+                {authError && <p style={{ color: 'var(--danger)', fontSize: '13px', textAlign: 'center' }}>{authError}</p>}
+                <button type="submit" className="btn btn--accent">View Presentation</button>
+            </form>
+        </div>
+    );
 
     return (
-        <div className="editor-shell" style={{ height: isAdmin ?  'calc(100dvh - 64px)' : '100dvh' }}>
+        <div className="editor-shell" style={{ height: isAdmin ? 'calc(100dvh - 64px)' : '100dvh' }}>
             <div className="editor-body viewer-body-v2">
                 <aside className="editor-slides" ref={sidebarRef}>
                     <div className="editor-slides-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Slides</span>
                         <button className="btn" onClick={() => setShowGrid(!showGrid)} title="Grid View">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="7" height="7"></rect>
-                                <rect x="14" y="3" width="7" height="7"></rect>
-                                <rect x="14" y="14" width="7" height="7"></rect>
-                                <rect x="3" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
                             </svg>
                         </button>
                     </div>
@@ -310,16 +427,10 @@ export function SlideViewer({
                                 <div className="slide-thumb-img" style={{ aspectRatio: aspectRatio }}>
                                     <img
                                         src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`}
-                                        alt={`Slide ${n}`}
-                                        loading="lazy"
-                                        decoding="async"
-                                        style={{
-                                            width: "100%",
-                                            height: "100%",
-                                            objectFit: "cover",
-                                            display: "block"
-                                        }}
-                                    />                                </div>
+                                        alt={`Slide ${n}`} loading="lazy" decoding="async"
+                                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                    />
+                                </div>
                                 <span className="slide-thumb-num">{n}</span>
                             </button>
                         ))}
@@ -327,28 +438,65 @@ export function SlideViewer({
                 </aside>
 
                 <main className="editor-main">
-                    {/* Bookmarks Overlay */}
-                    {bookmarks.length > 0 && (
+                    {folders.length > 0 && (
                         <div className="bookmarks-bar" style={{
                             position: 'absolute', top: '20px', left: '20px', zIndex: 100,
-                            display: 'flex', gap: '8px', flexWrap: 'wrap', maxWidth: '80%'
+                            display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '80%'
                         }}>
-                            {bookmarks.map(b => (
-                                <button
-                                    key={b.id}
-                                    className="btn"
-                                    onClick={() => goTo(b.slide)}
-                                    style={{
-                                        background: b.color, color: '#fff', border: 'none',
-                                        fontSize: '11px', fontWeight: 'bold', padding: '4px 12px',
-                                        borderRadius: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                                        opacity: 0.9, transition: 'transform 0.1s'
-                                    }}
-                                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-                                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                >
-                                    {b.name}
-                                </button>
+                            {folders.map(folder => (
+                                <div key={folder.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {/* Folder pill */}
+                                    <button
+                                        className="btn"
+                                        onClick={() => toggleFolder(folder.id)}
+                                        style={{
+                                            background: folder.color, color: '#fff', border: 'none',
+                                            fontSize: '11px', fontWeight: 'bold', padding: '4px 12px',
+                                            borderRadius: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            alignSelf: 'flex-start', transition: 'transform 0.1s, opacity 0.1s',
+                                            opacity: openFolderIds.has(folder.id) ? 1 : 0.85,
+                                        }}
+                                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                    >
+                    <span style={{
+                        display: 'inline-block',
+                        transform: openFolderIds.has(folder.id) ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s',
+                        fontSize: '9px',
+                    }}>▶</span>
+                                        {folder.name}
+                                        <span style={{ opacity: 0.7, fontSize: '10px' }}>({folder.bookmarks?.length})</span>
+                                    </button>
+
+                                    {/* Children pills */}
+                                    {openFolderIds.has(folder.id) && folder.bookmarks?.length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingLeft: '12px' }}>
+                                            {folder.bookmarks?.map(b => (
+                                                <button
+                                                    key={b.id}
+                                                    className="btn"
+                                                    onClick={() => goTo(b.slide)}
+                                                    style={{
+                                                        background: folder.color, color: '#fff', border: 'none',
+                                                        fontSize: '11px', fontWeight: 'bold', padding: '4px 12px',
+                                                        borderRadius: '20px', opacity: 0.75,
+                                                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                                                        transition: 'transform 0.1s, opacity 0.1s',
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.75'}
+                                                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                                                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                                >
+                                                    {b.name}
+                                                    <span style={{ opacity: 0.6, fontSize: '9px', marginLeft: '4px' }}>p.{b.slide}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     )}
@@ -367,7 +515,9 @@ export function SlideViewer({
                             </div>
                             <div className="grid-content" style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${gridScale}px, 1fr))`, gap: '32px', alignContent: 'start' }}>
                                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                                    <button key={n} className={`slide-thumb-btn ${n === currentPage ? "slide-thumb-btn--active" : ""}`} onClick={() => { goTo(n); setShowGrid(false); }} style={{ width: '100%', border: 'none', background: 'none', padding: 0 }}>
+                                    <button key={n} className={`slide-thumb-btn ${n === currentPage ? "slide-thumb-btn--active" : ""}`}
+                                            onClick={() => { goTo(n); setShowGrid(false); }}
+                                            style={{ width: '100%', border: 'none', background: 'none', padding: 0 }}>
                                         <div style={{ position: 'relative', width: '100%', aspectRatio: aspectRatio, overflow: 'hidden', borderRadius: '4px', border: n === currentPage ? '2px solid var(--accent)' : '2px solid transparent', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
                                             <img src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`} alt={`Slide ${n}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: 'block' }} />
                                             <span className="thumb-num" style={{ right: '8px', bottom: '8px', position: 'absolute', color: 'white', fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{n}</span>
@@ -380,70 +530,111 @@ export function SlideViewer({
                     )}
 
                     <div className="editor-stage-wrap">
-                        {/*<div style={{ flex: 1 }} />*/}
                         <div className="fullscreen-container" ref={stageWrapRef}>
                             {isFullscreen && mouseMoving && (
-                                <button onClick={toggleFullscreen} style={{
-                                    position: 'absolute', top: '20px', right: '20px', zIndex: 100,
-                                    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
-                                    border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%',
-                                    width: '40px', height: '40px', display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', fontSize: '20px', color: '#fff', cursor: 'pointer'
-                                }}>×</button>
+                                <button onClick={toggleFullscreen} style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: '#fff', cursor: 'pointer' }}>×</button>
                             )}
-                        <div className="ratio-stage" style={{ "--aspect": aspectRatio } as React.CSSProperties}>
 
-                            <div className="slide-frame">
-                                <img
-                                    key={currentPage}
-                                    src={slideUrl(currentPage)}
-                                    alt={`Slide ${currentPage}`}
-                                    className="slide-img-full"
-                                    draggable={false}
-                                    decoding="async"
-                                    style={{
-                                        // width: "90vw",
-                                        height: "auto",
-                                        objectFit: "contain",
-                                        display: "block"
-                                    }}
-                                />                                <VideoLayer overlays={videoOverlays} currentPage={currentPage} presentationId={presentationId} />
+                            {/* Zoom hint */}
+                            {zoom > 1 && (
+                                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 50, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', color: '#fff', fontSize: '11px', padding: '4px 10px', borderRadius: '20px', pointerEvents: 'none' }}>
+                                    {Math.round(zoom * 100)}% — click to reset
+                                </div>
+                            )}
+
+                            <div className="ratio-stage" style={{ "--aspect": aspectRatio } as React.CSSProperties}>
+                                <div
+                                    ref={slideFrameRef}
+                                    className="slide-frame"
+                                    onClick={handleSlideClick}
+                                    onMouseDown={handleMouseDown}
+                                    style={{ cursor: zoom > 1 ? 'grab' : 'zoom-in', overflow: 'hidden' }}
+                                >
+                                    <div style={{
+                                        transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+                                        transformOrigin: 'center center',   // ← was '0 0'
+                                        transition: isPanning.current ? 'none' : 'transform 0.2s ease',
+                                        width: '100%',
+                                        height: '100%',
+                                    }}>
+                                        <img
+                                            key={currentPage}
+                                            src={slideUrl(currentPage)}
+                                            alt={`Slide ${currentPage}`}
+                                            className="slide-img-full"
+                                            draggable={false}
+                                            decoding="async"
+                                            style={{ width: "100%", height: "auto", objectFit: "contain", display: "block", userSelect: 'none' }}
+                                        />
+                                        <VideoLayer overlays={videoOverlays} currentPage={currentPage} presentationId={presentationId} />
+                                    </div>
+                                </div>
                             </div>
-                            <button className="click-zone click-zone--prev" onClick={prev} disabled={currentPage === 1} />
-                            <button className="click-zone click-zone--next" onClick={next} disabled={currentPage === totalPages} />
                         </div>
-                        </div>
-
-                        {/*<div style={{ flex: 1 }} />*/}
                     </div>
 
-                    <div className="controls" style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', justifyContent: 'center', padding: '10px', flexShrink: 0 }}>
-                        <button className="ctrl-btn" onClick={prev} disabled={currentPage === 1}>←</button>
+                    <div className="controls" style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', justifyContent: 'center', padding: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button className="ctrl-btn" onClick={prev} disabled={currentPage === 1} title="Previous slide">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="15 18 9 12 15 6" />
+                            </svg>
+                        </button>
+
                         <div className="page-counter">
-                            <input type="number" className="page-input" value={currentPage} min={1} max={totalPages} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) goTo(v); }} />
+                            <input type="number" className="page-input" value={currentPage} min={1} max={totalPages}
+                                   onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) goTo(v); }} />
                             <span className="page-total">/ {totalPages}</span>
                         </div>
-                        <button className="ctrl-btn" onClick={next} disabled={currentPage === totalPages}>→</button>
-                        <button className="ctrl-btn ctrl-btn--fullscreen" onClick={toggleFullscreen}>{isFullscreen ? "⤡" : "⤢"}</button>
-                        
+
+                        <button className="ctrl-btn" onClick={next} disabled={currentPage === totalPages} title="Next slide">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                        </button>
+
+                        <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+
+                        <button className="ctrl-btn" onClick={toggleFullscreen} title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+                            {isFullscreen ? (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="4 14 10 14 10 20" />
+                                    <polyline points="20 10 14 10 14 4" />
+                                    <line x1="10" y1="14" x2="3" y2="21" />
+                                    <line x1="21" y1="3" x2="14" y2="10" />
+                                </svg>
+                            ) : (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="15 3 21 3 21 9" />
+                                    <polyline points="9 21 3 21 3 15" />
+                                    <line x1="21" y1="3" x2="14" y2="10" />
+                                    <line x1="3" y1="21" x2="10" y2="14" />
+                                </svg>
+                            )}
+                        </button>
+
                         {isAdmin && (
                             <>
-                                <button 
-                                    className={`ctrl-btn ${showBookmarksEditor ? 'btn--accent' : ''}`}
-                                    onClick={() => setShowBookmarksEditor(!showBookmarksEditor)}
-                                    style={{ marginLeft: '12px', fontSize: '11px', width: 'auto', padding: '0 10px' }}
-                                >
+                                <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+                                <button className={`ctrl-btn ${showBookmarksEditor ? 'btn--accent' : ''}`} onClick={() => setShowBookmarksEditor(!showBookmarksEditor)} title="Bookmarks" style={{ width: 'auto', padding: '0 10px', fontSize: '11px', gap: '6px', display: 'flex', alignItems: 'center' }}>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill={showBookmarksEditor ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                                    </svg>
                                     Bookmarks
                                 </button>
-                                <button 
-                                    className={`ctrl-btn ${isPublic ? 'btn--accent' : ''}`} 
-                                    onClick={toggleShare} 
-                                    disabled={isSharing}
-                                    style={{ marginLeft: '12px', fontSize: '11px', width: 'auto', padding: '0 10px' }}
-                                >
-                                    {isSharing ? "..." : (isPublic ? "Shared ✓" : "Share")}
+                                <button className={`ctrl-btn ${isPublic ? 'btn--accent' : ''}`} onClick={toggleShare} disabled={isSharing} title="Share" style={{ width: 'auto', padding: '0 10px', fontSize: '11px', gap: '6px', display: 'flex', alignItems: 'center' }}>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                                    </svg>
+                                    {isSharing ? "..." : (isPublic ? "Shared" : "Share")}
                                 </button>
-                                <Link href={`/edit/${presentationId}?page=${currentPage}`} className="ctrl-btn" style={{ marginLeft: '12px', fontSize: '11px', width: 'auto', padding: '0 10px' }}>Edit slide</Link>
+                                <Link href={`/edit/${presentationId}?page=${currentPage}`} className="ctrl-btn" style={{ width: 'auto', padding: '0 10px', fontSize: '11px', gap: '6px', display: 'flex', alignItems: 'center' }}>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                    </svg>
+                                    Edit slide
+                                </Link>
                             </>
                         )}
                     </div>
@@ -452,42 +643,93 @@ export function SlideViewer({
                         <div className="bookmarks-editor" style={{
                             position: 'absolute', bottom: '64px', left: '50%', transform: 'translateX(-50%)',
                             background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px',
-                            padding: '16px', width: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1000
+                            padding: '16px', width: '460px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1000,
+                            display: 'flex', flexDirection: 'column', maxHeight: '420px',
                         }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                <span style={{ fontWeight: 'bold' }}>Bookmarks</span>
-                                <button className="btn btn--accent" style={{ padding: '2px 8px', fontSize: '11px' }} onClick={addBookmark}>+ Add Current</button>
+                            {/* Fixed header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexShrink: 0 }}>
+                                <span style={{ fontWeight: 'bold' }}>Bookmark Folders</span>
+                                <button className="btn btn--accent" style={{ padding: '2px 10px', fontSize: '11px' }} onClick={addFolder}>+ New Folder</button>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                                {bookmarks.map((b, index) => (
+
+                            {/* Scrollable folder list */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
+                                {folders.map((folder, folderIdx) => (
                                     <div
-                                        key={b.id}
+                                        key={folder.id}
                                         draggable
-                                        onDragStart={() => (dragItem.current = index)}
-                                        onDragEnter={() => (dragOverItem.current = index)}
-                                        onDragEnd={handleSort}
+                                        onDragStart={() => { dragFolder.current = folderIdx; }}
+                                        onDragEnter={() => { dragOverFolder.current = folderIdx; }}
+                                        onDragEnd={handleFolderDragEnd}
                                         onDragOver={(e) => e.preventDefault()}
-                                        style={{ cursor: 'move', display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}
+                                        style={{ minHeight:'200px', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'scroll', background: 'rgba(255,255,255,0.02)' }}
                                     >
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '14px', marginRight: '4px' }}>⋮⋮</div>
-                                        <input
-                                            type="text"
-                                            value={b.name}
-                                            onChange={(e) => updateBookmark(b.id, { name: e.target.value })}
-                                            style={{ color: 'var(--text)', flex: 1, background: 'none', border: '1px solid var(--border)', fontSize: '12px', padding: '4px' }}
-                                        />
-                                        <select
-                                            value={b.color}
-                                            onChange={(e) => updateBookmark(b.id, { color: e.target.value })}
-                                            style={{ color: 'var(--text)', background: 'none', border: '1px solid var(--border)', fontSize: '12px', padding: '4px' }}
-                                        >
-                                            {BOOKMARK_COLORS.map(c => <option key={c.value} value={c.value}>{c.name}</option>)}
-                                        </select>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', minWidth: '40px' }}>p.{b.slide}</span>
-                                        <button className="btn btn--danger" style={{ padding: '4px' }} onClick={() => deleteBookmark(b.id)}>×</button>
+                                        {/* Folder header */}
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '8px', background: 'rgba(255,255,255,0.04)' }}>
+                                            {/* Drag handle */}
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '14px', cursor: 'grab', flexShrink: 0 }}>⋮⋮</div>
+                                            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: folder.color, flexShrink: 0 }} />
+                                            <input
+                                                type="text"
+                                                value={folder.name}
+                                                onChange={(e) => updateFolder(folder.id, { name: e.target.value })}
+                                                style={{ color: 'var(--text)', flex: 1, background: 'none', border: '1px solid var(--border)', fontSize: '12px', padding: '4px', fontWeight: 'bold' }}
+                                            />
+                                            <select
+                                                value={folder.color}
+                                                onChange={(e) => updateFolder(folder.id, { color: e.target.value })}
+                                                style={{ color: 'var(--text)', background: 'none', border: '1px solid var(--border)', fontSize: '12px', padding: '4px' }}
+                                            >
+                                                {BOOKMARK_COLORS.map(c => <option key={c.value} value={c.value}>{c.name}</option>)}
+                                            </select>
+                                            <button
+                                                className="btn btn--accent"
+                                                style={{ padding: '2px 6px', fontSize: '10px', whiteSpace: 'nowrap' }}
+                                                onClick={() => addBookmarkToFolder(folder.id)}
+                                            >+ Slide</button>
+                                            <button className="btn btn--danger" style={{ padding: '4px' }} onClick={() => deleteFolder(folder.id)}>×</button>
+                                        </div>
+
+                                        {/* Bookmarks within folder */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: folder.bookmarks.length ? '8px' : '0' }}>
+                                            {folder.bookmarks.map((b, bookmarkIdx) => (
+                                                <div
+                                                    key={b.id}
+                                                    draggable
+                                                    onDragStart={(e) => {
+                                                        e.stopPropagation(); // prevent folder drag from firing
+                                                        dragBookmark.current = { folderIdx, bookmarkIdx };
+                                                    }}
+                                                    onDragEnter={(e) => {
+                                                        e.stopPropagation();
+                                                        dragOverBookmark.current = { folderIdx, bookmarkIdx };
+                                                    }}
+                                                    onDragEnd={(e) => {
+                                                        e.stopPropagation();
+                                                        handleBookmarkDragEnd(folder.id);
+                                                    }}
+                                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                    style={{ display: 'flex', gap: '8px', alignItems: 'center', paddingLeft: '8px', cursor: 'move' }}
+                                                >
+                                                    <div style={{ color: 'var(--text-muted)', fontSize: '12px', cursor: 'grab', flexShrink: 0 }}>⋮⋮</div>
+                                                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: folder.color, flexShrink: 0 }} />
+                                                    <input
+                                                        type="text"
+                                                        value={b.name}
+                                                        onChange={(e) => updateBookmarkInFolder(folder.id, b.id, { name: e.target.value })}
+                                                        style={{ color: 'var(--text)', flex: 1, background: 'none', border: '1px solid var(--border)', fontSize: '11px', padding: '3px' }}
+                                                    />
+                                                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', minWidth: '36px' }}>p.{b.slide}</span>
+                                                    <button className="btn btn--danger" style={{ padding: '2px 4px', fontSize: '10px' }} onClick={() => deleteBookmarkFromFolder(folder.id, b.id)}>×</button>
+                                                </div>
+                                            ))}
+                                            {folder.bookmarks.length === 0 && (
+                                                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px', padding: '8px 0' }}>No bookmarks — click + Slide to add current slide</p>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
-                                {bookmarks.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>No bookmarks yet</p>}
+                                {folders.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>No folders yet</p>}
                             </div>
                         </div>
                     )}
