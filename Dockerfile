@@ -37,6 +37,9 @@ RUN apk add --no-cache ghostscript curl
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+RUN mkdir -p /app/public/slides \
+    && chown -R nextjs:nodejs /app/public/slides
+
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next

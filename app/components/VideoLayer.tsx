@@ -78,7 +78,7 @@ function VideoElement({
     // Object-fit positioning
     const px = overlay.posX ?? 50;
     const py = overlay.posY ?? 50;
-    const posterUrl = `/slides/${presentationId}/videos/${overlay.id}.webp`;
+    const posterUrl = `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/videos/${overlay.id}.webp`;
 
     return (
         <div
@@ -97,7 +97,7 @@ function VideoElement({
         >
             <video
                 ref={ref}
-                src={`/slides/${presentationId}/videos/${overlay.filename}`}
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/videos/${overlay.filename}`}
                 poster={posterUrl}
                 autoPlay={overlay.autoplay}
                 loop={overlay.loop}

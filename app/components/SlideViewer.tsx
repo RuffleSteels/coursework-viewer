@@ -359,7 +359,7 @@ export function SlideViewer({
                                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                                     <button key={n} className={`slide-thumb-btn ${n === currentPage ? "slide-thumb-btn--active" : ""}`} onClick={() => { goTo(n); setShowGrid(false); }} style={{ width: '100%', border: 'none', background: 'none', padding: 0 }}>
                                         <div style={{ position: 'relative', width: '100%', aspectRatio: aspectRatio, overflow: 'hidden', borderRadius: '4px', border: n === currentPage ? '2px solid var(--accent)' : '2px solid transparent', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                                            <img src={`/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`} alt={`Slide ${n}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: 'block' }} />
+                                            <img src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`} alt={`Slide ${n}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: 'block' }} />
                                             <span className="thumb-num" style={{ right: '8px', bottom: '8px', position: 'absolute', color: 'white', fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{n}</span>
                                         </div>
                                         <span className="slide-thumb-num" style={{ display: 'block', marginTop: '4px', textAlign: 'center', fontSize: '10px' }}>{n}</span>

@@ -380,7 +380,7 @@ function EditorContent() {
                                     >
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
-                                            src={`/slides/${id}/thumb-${String(n).padStart(4, "0")}.webp`}
+                                            src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${id}/thumb-${String(n).padStart(4, "0")}.webp`}
                                             alt={`Slide ${n}`}
                                             loading="lazy"
                                         />
@@ -460,7 +460,7 @@ function EditorContent() {
                                             }}>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
-                                                    src={`/slides/${id}/thumb-${String(n).padStart(4, "0")}.webp`}
+                                                    src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${id}/thumb-${String(n).padStart(4, "0")}.webp`}
                                                     alt={`Slide ${n}`}
                                                     style={{ width: "100%", height: "100%", objectFit: "cover", display: 'block' }}
                                                 />
@@ -528,7 +528,7 @@ function EditorContent() {
                             {/* Slide image */}
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                                src={`/slides/${id}/slide-${String(currentSlide).padStart(4, "0")}.webp`}
+                                src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${id}/slide-${String(currentSlide).padStart(4, "0")}.webp`}
                                 alt={`Slide ${currentSlide}`}
                                 className="editor-slide-img"
                                 draggable={false}
@@ -619,7 +619,7 @@ function OverlayBox({
 }) {
     const px = overlay.posX ?? 50;
     const py = overlay.posY ?? 50;
-    const posterUrl = `/slides/${presentationId}/videos/${overlay.id}.webp`;
+    const posterUrl = `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/videos/${overlay.id}.webp`;
 
     return (
         <div
@@ -639,7 +639,7 @@ function OverlayBox({
             onClick={(e) => e.stopPropagation()}
         >
             <video
-                src={`/slides/${presentationId}/videos/${overlay.filename}`}
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/videos/${overlay.filename}`}
                 poster={posterUrl}
                 muted
                 preload="metadata"
@@ -749,8 +749,8 @@ function PropertiesPanel({
             <div className="props-section">
                 <div className="props-section-label">Preview</div>
                 <video
-                    src={`/slides/${presentationId}/videos/${overlay.filename}`}
-                    poster={`/slides/${presentationId}/videos/${overlay.id}.webp`}
+                    src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/videos/${overlay.filename}`}
+                    poster={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/videos/${overlay.id}.webp`}
                     controls
                     muted={overlay.muted}
                     loop={overlay.loop}

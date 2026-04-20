@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: `${meta.title} — Folium`,
         openGraph: {
             title: meta.title,
-            images: [`/slides/${id}/thumb-0001.webp`],
+            images: [`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${id}/thumb-0001.webp`],
         },
     };
 }
