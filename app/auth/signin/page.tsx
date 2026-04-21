@@ -109,7 +109,7 @@ export default function SignIn() {
 
           <div style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
             <Link
-                href={`${process.env.NEXT_PUBLIC_BASE_PATH}/`}
+                href={`/`}
                 className="btn"
                 style={{
                   width: '100%',
