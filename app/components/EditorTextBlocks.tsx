@@ -24,7 +24,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useState } from "react";
-import type { TextBlock } from "@/app/lib/text-blocks";
+import {TextBlock, textBoxMixer, textBoxMixerTitle} from "@/app/lib/text-blocks";
 import type { VideoOverlay } from "@/app/lib/video-overlays";
 
 // ─── Types re-exported for convenience ───────────────────────────────────────
@@ -139,11 +139,13 @@ export function OverlayTextBox({
         mode: DragMode
     ) => void;
 }) {
+    const isRight = block.expandDirection === 'right';
     return (
         <div
             style={{
                 position: "absolute",
-                left: `${block.x}%`,
+                left: isRight ? 'auto' : `${block.x}%`,
+                right: isRight ? `${100 - block.x}%` : 'auto',
                 top: `${block.y}%`,
                 width: `${block.width}%`,
                 zIndex: isSelected ? 35 : 30,
@@ -152,6 +154,7 @@ export function OverlayTextBox({
                     ? "2px solid var(--accent, #7c3aed)"
                     : "2px dashed rgba(255,255,255,0.35)",
                 borderRadius: "10px",
+
                 cursor: "move",
                 boxSizing: "border-box",
             }}
@@ -164,13 +167,15 @@ export function OverlayTextBox({
             {/* Title bar */}
             <div
                 style={{
-                    background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} 70%, transparent)`,
+                    background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} ${textBoxMixerTitle})`,
                     backdropFilter: "blur(8px)",
                     WebkitBackdropFilter: "blur(8px)",
                     border: "1px solid rgba(255,255,255,0.18)",
                     borderRadius: "10px 10px 0 0",
                     padding: "5px 12px",
                     color: "#fff",
+                    flexDirection: isRight ? 'row-reverse' : 'row',
+
                     fontSize: `${Math.max(10, block.fontSize * 1.2)}px`,
                     fontWeight: 600,
                     display: "flex",
@@ -187,7 +192,7 @@ export function OverlayTextBox({
             {/* Content preview */}
             <div
                 style={{
-                    background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} 35%, transparent)`,
+                    background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} ${textBoxMixer})`,
                     backdropFilter: "blur(6px)",
                     WebkitBackdropFilter: "blur(6px)",
                     border: "1px solid rgba(255,255,255,0.12)",
@@ -304,6 +309,34 @@ export function TextBlockPropertiesPanel({
                     ))}
                 </div>
             </div>
+            <div className="props-section">
+                <div className="props-section-label">Expand Direction</div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    {(['left', 'right'] as const).map((dir) => (
+                        <button
+                            key={dir}
+                            onClick={() => { onUpdate({ expandDirection: dir }, true); }}
+                            style={{
+                                flex: 1,
+                                padding: '5px 8px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                borderRadius: '4px',
+                                border: '1px solid var(--border)',
+                                cursor: 'pointer',
+                                background: (block.expandDirection ?? 'left') === dir
+                                    ? 'var(--accent)'
+                                    : 'var(--surface, #1a1a1a)',
+                                color: (block.expandDirection ?? 'left') === dir
+                                    ? '#fff'
+                                    : 'var(--text-muted)',
+                            }}
+                        >
+                            {dir === 'left' ? '← Left' : 'Right →'}
+                        </button>
+                    ))}
+                </div>
+            </div>
             {/* Content */}
             <div className="props-section">
                 <div className="props-section-label">Content (shown when expanded)</div>
@@ -388,47 +421,47 @@ export function TextBlockPropertiesPanel({
             </div>
 
             {/* Preview */}
-            <div className="props-section">
-                <div className="props-section-label">Preview (viewer appearance)</div>
-                <div
-                    style={{
-                        fontFamily: "'Ubuntu', sans-serif",
-                        borderRadius: "8px",
-                        overflow: "hidden",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                    }}
-                >
-                    <div
-                        style={{
-                            background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} 70%, transparent)`,
-                            padding: "5px 12px",
-                            color: "#fff",
-                            fontSize: `${Math.max(10, block.fontSize * 0.7)}px`,
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                        }}
-                    >
-                        <span style={{ fontSize: "9px" }}>▶</span>
-                        {block.title || "Untitled"}
-                    </div>
-                    <div
-                        style={{
-                            background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} 35%, transparent)`,
-                            padding: "8px 12px",
-                            color: "rgba(255,255,255,0.85)",
-                            fontSize: `${block.fontSize}px`,
-                            lineHeight: 1.5,
-                            whiteSpace: "pre-wrap",
-                            maxHeight: "100px",
-                            overflow: "hidden",
-                        }}
-                    >
-                        {block.content || <em style={{ opacity: 0.4 }}>No content</em>}
-                    </div>
-                </div>
-            </div>
+            {/*<div className="props-section">*/}
+            {/*    <div className="props-section-label">Preview (viewer appearance)</div>*/}
+            {/*    <div*/}
+            {/*        style={{*/}
+            {/*            fontFamily: "'Ubuntu', sans-serif",*/}
+            {/*            borderRadius: "8px",*/}
+            {/*            overflow: "hidden",*/}
+            {/*            border: "1px solid rgba(255,255,255,0.15)",*/}
+            {/*        }}*/}
+            {/*    >*/}
+            {/*        <div*/}
+            {/*            style={{*/}
+            {/*                background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} ${textBoxMixerTitle})`,*/}
+            {/*                padding: "5px 12px",*/}
+            {/*                color: "#fff",*/}
+            {/*                fontSize: `${Math.max(10, block.fontSize * 0.7)}px`,*/}
+            {/*                fontWeight: 600,*/}
+            {/*                display: "flex",*/}
+            {/*                alignItems: "center",*/}
+            {/*                gap: "6px",*/}
+            {/*            }}*/}
+            {/*        >*/}
+            {/*            <span style={{ fontSize: "9px" }}>▶</span>*/}
+            {/*            {block.title || "Untitled"}*/}
+            {/*        </div>*/}
+            {/*        <div*/}
+            {/*            style={{*/}
+            {/*                background: `color-mix(in srgb, ${block.color ?? '#3b82f6'} ${textBoxMixer})`,*/}
+            {/*                padding: "8px 12px",*/}
+            {/*                color: "rgba(255,255,255,0.85)",*/}
+            {/*                fontSize: `${block.fontSize}px`,*/}
+            {/*                lineHeight: 1.5,*/}
+            {/*                whiteSpace: "pre-wrap",*/}
+            {/*                maxHeight: "100px",*/}
+            {/*                overflow: "hidden",*/}
+            {/*            }}*/}
+            {/*        >*/}
+            {/*            {block.content || <em style={{ opacity: 0.4 }}>No content</em>}*/}
+            {/*        </div>*/}
+            {/*    </div>*/}
+            {/*</div>*/}
 
             <button className="btn btn--danger" onClick={onDelete}>
                 Delete text block
