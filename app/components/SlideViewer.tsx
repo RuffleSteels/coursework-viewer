@@ -6,6 +6,8 @@ import type { VideoOverlay } from "@/app/lib/video-overlays";
 import type { Bookmark } from "@/app/lib/pdf-processor";
 import { VideoLayer } from "./VideoLayer";
 import { useSession } from "next-auth/react";
+import { TextBlockLayer } from "./TextBlockLayer";
+import type { TextBlock } from "@/app/lib/text-blocks";
 
 interface SlideViewerProps {
     presentationId: string;
@@ -53,6 +55,8 @@ export function SlideViewer({
     const [isPublic, setIsPublic] = useState(initialIsPublic);
     const [isSharing, setIsSharing] = useState(false);
     const [isAuthorized, setIsAuthorized] = useState(false);
+    const [textBlocks, setTextBlocks] = useState<TextBlock[]>([]);
+
     const [authPassword, setAuthPassword] = useState("");
     const [authError, setAuthError] = useState("");
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -78,7 +82,7 @@ export function SlideViewer({
     const stageWrapRef = useRef<HTMLDivElement>(null);
 
     const slideUrl = (page: number) =>
-        `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/slide-${String(page).padStart(4, "0")}.webp`;
+        `${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/slide-${String(page).padStart(4, "0")}.webp?v=2`;
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -179,7 +183,10 @@ export function SlideViewer({
             .then((r) => r.json())
             .then((data: BookmarkFolder[]) => setFolders(data))
             .catch(() => setFolders([]));
-
+        fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/presentations/${presentationId}/textblocks`)
+            .then((r) => r.json())
+            .then((data: TextBlock[]) => setTextBlocks(data))
+            .catch(() => setTextBlocks([]));
 // save helper:
 
 
@@ -531,7 +538,7 @@ export function SlideViewer({
                             <button key={n} className={`slide-thumb-btn ${n === currentPage ? "slide-thumb-btn--active" : ""}`} onClick={() => goTo(n)}>
                                 <div className="slide-thumb-img" style={{ aspectRatio: aspectRatio }}>
                                     <img
-                                        src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`}
+                                        src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp?v=2`}
                                         alt={`Slide ${n}`} loading="lazy" decoding="async"
                                         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                     />
@@ -624,7 +631,7 @@ export function SlideViewer({
                                             onClick={() => { goTo(n); setShowGrid(false); }}
                                             style={{ width: '100%', border: 'none', background: 'none', padding: 0 }}>
                                         <div style={{ position: 'relative', width: '100%', aspectRatio: aspectRatio, overflow: 'hidden', borderRadius: '4px', border: n === currentPage ? '2px solid var(--accent)' : '2px solid transparent', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                                            <img src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp`} alt={`Slide ${n}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: 'block' }} />
+                                            <img src={`${process.env.NEXT_PUBLIC_BASE_PATH}/slides/${presentationId}/thumb-${String(n).padStart(4, "0")}.webp?v=2`} alt={`Slide ${n}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: 'block' }} />
                                             <span className="thumb-num" style={{ right: '8px', bottom: '8px', position: 'absolute', color: 'white', fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{n}</span>
                                         </div>
                                         <span className="slide-thumb-num" style={{ display: 'block', marginTop: '4px', textAlign: 'center', fontSize: '10px' }}>{n}</span>
@@ -690,7 +697,7 @@ export function SlideViewer({
                                     display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '70%',
                                     pointerEvents: 'auto',
                                 }}>
-                                    {isMobile ? null : folders.map(folder => (
+                                    {isMobile || !isFullscreen ? null : folders.map(folder => (
                                         <div key={folder.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                             <button
                                                 className="btn"
@@ -787,6 +794,8 @@ export function SlideViewer({
                                             style={{ width: "100%", height: "auto", objectFit: "contain", display: "block", userSelect: 'none' }}
                                         />
                                         <VideoLayer overlays={videoOverlays} currentPage={currentPage} presentationId={presentationId} />
+                                        <TextBlockLayer blocks={textBlocks} currentPage={currentPage} />
+
                                     </div>
                                 </div>
                             </div>

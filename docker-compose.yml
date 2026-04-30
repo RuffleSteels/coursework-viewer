@@ -17,6 +17,7 @@ services:
       - proxy-net
     env_file:
       - .env
+
 networks:
   proxy-net:
     external: true
